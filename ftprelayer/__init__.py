@@ -8,9 +8,9 @@ from .util import import_string
 class Application(object):
     def __init__(self, configfile):
         config = ConfigObj(configfile)
-        self.relayers = list(self._iter_relayers(config['relayers']))
+        self.relayers = list(self._relayers_from_config(config['relayers']))
 
-    def _iter_relayers(self, section):
+    def _relayers_from_config(self, section):
         for name in section.sections:
             yield Relayer.from_config(name, section[name])
 
