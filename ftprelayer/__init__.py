@@ -1,20 +1,42 @@
+import os
 from cStringIO import StringIO
 
 from configobj import ConfigObj
 from ftputil import FTPHost
+import pyinotify
 
 from .util import import_string
 
 class Application(object):
+    _watch_mask = (pyinotify.IN_CLOSE_WRITE |
+                   pyinotify.IN_MOVED_TO |
+                   pyinotify.IN_MOVED_FROM)
+
     def __init__(self, configfile):
         config = ConfigObj(configfile)
         self.relayers = list(self._relayers_from_config(config['relayers']))
+        self._setup_notifier()
 
     def _relayers_from_config(self, section):
         for name in section.sections:
             yield Relayer.from_config(name, section[name])
 
         
+    def _setup_notifier(self):
+        wm = pyinotify.WatchManager()
+        for r in self.relayers:
+            for p in r.paths:
+                wm.add_watch(os.path.dirname(p), self._watch_mask,
+                             proc_fun=_EventProcessor(r))
+        #TODO
+
+class _EventProcessor(pyinotify.ProcessEvent):
+    def __init__(self, relayer):
+        self.relayer = relayer
+        super(_EventProcessor, self).__init__()
+
+    def process_default(self, event):
+        pass
 
 class Relayer(object):
     uploaders = {}
