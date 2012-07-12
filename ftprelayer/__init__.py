@@ -12,8 +12,7 @@ from .util import import_string
 log = logging.getLogger(__name__)
 
 class Application(object):
-    _watch_mask = (pyinotify.IN_CLOSE_WRITE |
-                   pyinotify.IN_MOVED_TO)
+    _watch_mask = (pyinotify.IN_CLOSE_WRITE | pyinotify.IN_MOVED_TO)
 
     def __init__(self):
         self._relayers = []
