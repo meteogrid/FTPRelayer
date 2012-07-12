@@ -1,5 +1,4 @@
 import time
-import Queue
 import os.path
 import shutil
 import tempfile
@@ -51,32 +50,36 @@ class TestApplication(TestCase):
         app = self._makeOne()
         dir = self._makeTempDir()
         relayer = self._makeRelayer(paths=[dir])
+        state  = {'called':False}
+        def process(self):
+            state['called'] = True
+        relayer.process = process
         app.add_relayer(relayer)
         self.addCleanup(app.stop)
         app.start()
         with open(os.path.join(dir, 'foo.txt'), 'w') as f:
-            self.failUnless(app._queue.empty())
+            self.failUnless(not state['called'])
             f.write('foo')
-            self.failUnless(app._queue.empty())
-        try:
-            item = app._queue.get(True, 1)
-        except Queue.Empty:
-            self.fail("No item was queued when file was closed")
+            self.failUnless(not state['called'])
+        time.sleep(.1)
+        self.failUnless(state['called'])
 
     def test_watch_moved_file(self):
         app = self._makeOne()
         dir = self._makeTempDir()
         dir2 = self._makeTempDir()
         relayer = self._makeRelayer(paths=[dir])
+        state  = {'called':False}
+        def process(self):
+            state['called'] = True
+        relayer.process = process
         app.add_relayer(relayer)
         self.addCleanup(app.stop)
         app.start()
         path = os.path.join(dir2, 'foo.txt')
         with open(path, 'w') as f:
             f.write('foo')
-        self.failUnless(app._queue.empty())
+        self.failUnless(not state['called'])
         os.rename(path, os.path.join(dir, 'foo.txt'))
-        try:
-            item = app._queue.get(True, 1)
-        except Queue.Empty:
-            self.fail("No item was queued when file was moved")
+        time.sleep(.1)
+        self.failUnless(state['called'])

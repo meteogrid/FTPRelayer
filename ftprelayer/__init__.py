@@ -2,6 +2,7 @@ import Queue
 import os
 import logging
 from cStringIO import StringIO
+from threading import Thread, Event
 
 from configobj import ConfigObj
 from ftputil import FTPHost
@@ -18,8 +19,9 @@ class Application(object):
         self._relayers = []
         self._wm = pyinotify.WatchManager()
         self._notifier = pyinotify.ThreadedNotifier(self._wm)
+        self._queue_processor = Thread(target=self._process_queue)
         self._queue = Queue.Queue()
-
+        self._stopping = Event()
 
     @classmethod
     def from_config(cls, configfile):
@@ -35,9 +37,11 @@ class Application(object):
 
     def start(self):
         self._notifier.start()
+        self._queue_processor.start()
 
 
     def stop(self):
+        self._stopping.set()
         self._notifier.stop()
         
     def add_relayer(self, relayer):
@@ -45,6 +49,18 @@ class Application(object):
         for p in relayer.paths:
             proc_fun = _EventProcessor(self._queue, relayer)
             self._wm.add_watch(p, self._watch_mask, proc_fun=proc_fun)
+
+    def _process_queue(self):
+        while not self._stopping.isSet():
+            try:
+                relayer, path = self._queue.get(True, .5)
+            except Queue.Empty:
+                pass
+            else:
+                try:
+                    relayer.process(path)
+                except:
+                    log.exception("In Relayer.process %r", relayer)
 
 class _EventProcessor(pyinotify.ProcessEvent):
     def __init__(self, queue, relayer):
@@ -85,6 +101,9 @@ class Relayer(object):
         return cls.from_config(section)
         
         
+    def process(self, path):
+        #TODO
+        pass
                     
                    
         
