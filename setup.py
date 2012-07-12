@@ -25,7 +25,7 @@ setup(name='FTPRelayer',
     ],
     extras_require = {
     },
-    tests_require = ['nose'],
+    tests_require = ["nose", "unittest2"],
     entry_points="""
     [console_scripts]
     ftprelayer = ftprelayer:main

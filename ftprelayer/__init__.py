@@ -1,4 +1,6 @@
+import Queue
 import os
+import logging
 from cStringIO import StringIO
 
 from configobj import ConfigObj
@@ -7,36 +9,57 @@ import pyinotify
 
 from .util import import_string
 
+log = logging.getLogger(__name__)
+
 class Application(object):
     _watch_mask = (pyinotify.IN_CLOSE_WRITE |
-                   pyinotify.IN_MOVED_TO |
-                   pyinotify.IN_MOVED_FROM)
+                   pyinotify.IN_MOVED_TO)
 
-    def __init__(self, configfile):
+    def __init__(self):
+        self._relayers = []
+        self._wm = pyinotify.WatchManager()
+        self._notifier = pyinotify.ThreadedNotifier(self._wm)
+        self._queue = Queue.Queue()
+
+
+    @classmethod
+    def from_config(cls, configfile):
         config = ConfigObj(configfile)
-        self.relayers = list(self._relayers_from_config(config['relayers']))
-        self._setup_notifier()
+        self = cls()
+        for r in self._relayers_from_config(config['relayers']):
+            self.add_relayer(r)
+        return self
 
     def _relayers_from_config(self, section):
         for name in section.sections:
             yield Relayer.from_config(name, section[name])
 
+    def start(self):
+        self._notifier.start()
+
+
+    def stop(self):
+        self._notifier.stop()
         
-    def _setup_notifier(self):
-        wm = pyinotify.WatchManager()
-        for r in self.relayers:
-            for p in r.paths:
-                wm.add_watch(os.path.dirname(p), self._watch_mask,
-                             proc_fun=_EventProcessor(r))
-        #TODO
+    def add_relayer(self, relayer):
+        self._relayers.append(relayer)
+        for p in relayer.paths:
+            proc_fun = _EventProcessor(self._queue, relayer)
+            self._wm.add_watch(p, self._watch_mask, proc_fun=proc_fun)
 
 class _EventProcessor(pyinotify.ProcessEvent):
-    def __init__(self, relayer):
+    def __init__(self, queue, relayer):
+        self.queue = queue
         self.relayer = relayer
         super(_EventProcessor, self).__init__()
 
-    def process_default(self, event):
-        pass
+    def _process(self, event):
+        log.debug("got event: %r", event)
+        self.queue.put((self.relayer, event.pathname))
+
+    process_IN_CLOSE_WRITE = _process
+    process_IN_MOVED_TO = _process
+
 
 class Relayer(object):
     uploaders = {}
