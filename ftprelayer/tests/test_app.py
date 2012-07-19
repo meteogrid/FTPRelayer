@@ -31,10 +31,6 @@ class TestApplication(TestCase):
         self.addCleanup(shutil.rmtree, dir)
         return dir
 
-    def test_app_is_properly_configured(self):
-        app = self._makeOneFromConfig()
-        self.assertIsInstance(app._cleanup, bool)
-        
     def test_all_relayers_are_parsed(self):
         app = self._makeOneFromConfig()
         self.failUnlessEqual(2, len(app._relayers))
@@ -87,20 +83,6 @@ class TestApplication(TestCase):
         os.rename(path, os.path.join(dir, 'foo.txt'))
         time.sleep(.1)
         self.failUnless(state['called'])
-
-    def test_file_cleanup(self):
-        app = self._makeOne(cleanup=True)
-        dir = self._makeTempDir()
-        relayer = self._makeRelayer(paths=[dir+'/*'])
-        relayer.process = lambda s: True
-        app.add_relayer(relayer)
-        self.addCleanup(app.stop)
-        app.start()
-        fname = os.path.join(dir, 'foo.txt')
-        with open(fname, 'w') as f:
-            f.write('foo')
-        time.sleep(.1)
-        self.failUnless(not os.path.exists(fname))
 
     def test_file_archival(self):
         archive_dir = self._makeTempDir()

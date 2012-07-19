@@ -23,14 +23,13 @@ class Application(object):
 
     now = datetime.datetime.now # To mock in tests
 
-    def __init__(self, cleanup=False, archive_dir=None):
+    def __init__(self, archive_dir=None):
         self._relayers = []
         self._wm = pyinotify.WatchManager()
         self._notifier = pyinotify.ThreadedNotifier(self._wm)
         self._queue_processor = Thread(target=self._process_queue)
         self._queue = Queue.Queue()
         self._stopping = Event()
-        self._cleanup = cleanup
         self._archive_dir = archive_dir
 
     @classmethod
@@ -77,19 +76,17 @@ class Application(object):
             else:
                 try:
                     relayer.process(path)
-                    self._cleanup_or_archive(path)
+                    self._archive(path)
                 except:
                     log.exception("When processing %r, %r", relayer, path)
 
-    def _cleanup_or_archive(self, path):
+    def _archive(self, path):
         if self._archive_dir is not None:
             dest = self._archive_path(path)
             destdir = os.path.dirname(dest)
             if not os.path.exists(destdir):
                 os.makedirs(destdir)
             shutil.move(path, self._archive_path(path))
-        elif self._cleanup:
-            os.unlink(path)
 
     def _archive_path(self, path):
         subdir = self.now().strftime('%Y/%m/%d')
