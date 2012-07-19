@@ -82,7 +82,7 @@ class Application(object):
                     relayer.process(path)
                     self._archive(path)
                 except:
-                    log.exception("When processing %r, %r", relayer, path)
+                    log.exception("When processing %r, %r", relayer.name, path)
 
     def _archive(self, path):
         if self._archive_dir is not None:
@@ -206,8 +206,9 @@ class add_prefix(object):
         self.prefix = prefix
 
     def __call__(self, path):
+        new_name = self.prefix + os.path.basename(path)
         with open(path) as f:
-            yield self.prefix+path, f.read()
+            yield new_name, f.read()
 
 def main():
     logging.basicConfig(level=logging.INFO)
@@ -219,7 +220,7 @@ def main():
         log.info("Starting app")
         app.start(True)
     except (KeyboardInterrupt, SystemExit):
-        pass
-    finally:
         log.info("Stopping app")
+        app.stop()
+    finally:
         app.stop()
