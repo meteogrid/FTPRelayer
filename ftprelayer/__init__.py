@@ -1,11 +1,16 @@
 import Queue
+import datetime
 import os
 import logging
+import shutil
 from cStringIO import StringIO
 from threading import Thread, Event
+from fnmatch import fnmatchcase
 
+import validate
 from configobj import ConfigObj
 from ftputil import FTPHost
+from pkg_resources import resource_filename
 import pyinotify
 
 from .util import import_string
@@ -14,19 +19,28 @@ log = logging.getLogger(__name__)
 
 class Application(object):
     _watch_mask = (pyinotify.IN_CLOSE_WRITE | pyinotify.IN_MOVED_TO)
+    configspec_filename = resource_filename(__name__, 'configspec.ini')
 
-    def __init__(self):
+    now = datetime.datetime.now # To mock in tests
+
+    def __init__(self, cleanup=False, archive_dir=None):
         self._relayers = []
         self._wm = pyinotify.WatchManager()
         self._notifier = pyinotify.ThreadedNotifier(self._wm)
         self._queue_processor = Thread(target=self._process_queue)
         self._queue = Queue.Queue()
         self._stopping = Event()
+        self._cleanup = cleanup
+        self._archive_dir = archive_dir
 
     @classmethod
     def from_config(cls, configfile):
-        config = ConfigObj(configfile)
-        self = cls()
+        spec = ConfigObj(cls.configspec_filename, list_values=False,
+                         _inspec=True)
+        config = ConfigObj(configfile, configspec=spec)
+        if config.validate(validate.Validator()) is not True:
+            raise AssertionError("Config is not valid")
+        self = cls(**dict(config['main']))
         for r in self._relayers_from_config(config['relayers']):
             self.add_relayer(r)
         return self
@@ -47,8 +61,12 @@ class Application(object):
     def add_relayer(self, relayer):
         self._relayers.append(relayer)
         for p in relayer.paths:
-            proc_fun = _EventProcessor(self._queue, relayer)
-            self._wm.add_watch(p, self._watch_mask, proc_fun=proc_fun)
+            self._add_watch(relayer, p)
+
+    def _add_watch(self, relayer, path):
+        proc_fun = _EventProcessor(self._queue, relayer)
+        self._wm.add_watch(os.path.dirname(path), self._watch_mask,
+                           proc_fun=proc_fun)
 
     def _process_queue(self):
         while not self._stopping.isSet():
@@ -59,8 +77,25 @@ class Application(object):
             else:
                 try:
                     relayer.process(path)
+                    self._cleanup_or_archive(path)
                 except:
-                    log.exception("In Relayer.process %r", relayer)
+                    log.exception("When processing %r, %r", relayer, path)
+
+    def _cleanup_or_archive(self, path):
+        if self._archive_dir is not None:
+            dest = self._archive_path(path)
+            destdir = os.path.dirname(dest)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            shutil.move(path, self._archive_path(path))
+        elif self._cleanup:
+            os.unlink(path)
+
+    def _archive_path(self, path):
+        subdir = self.now().strftime('%Y/%m/%d')
+        return os.path.join(self._archive_dir, subdir, os.path.basename(path))
+        
+        
 
 class _EventProcessor(pyinotify.ProcessEvent):
     def __init__(self, queue, relayer):
@@ -70,7 +105,8 @@ class _EventProcessor(pyinotify.ProcessEvent):
 
     def _process(self, event):
         log.debug("got event: %r", event)
-        self.queue.put((self.relayer, event.pathname))
+        if self.relayer.path_matches(event.pathname):
+            self.queue.put((self.relayer, event.pathname))
 
     process_IN_CLOSE_WRITE = _process
     process_IN_MOVED_TO = _process
@@ -91,8 +127,8 @@ class Relayer(object):
         uploader = cls._make_uploader(section)
         return cls(name=name,
                    uploader=uploader,
-                   paths=section.get('paths', []),
-                   processor=import_string(section.get('processor')))
+                   paths=section['paths'],
+                   processor=import_string(section['processor']))
 
 
     @classmethod
@@ -100,11 +136,22 @@ class Relayer(object):
         cls = cls.uploaders[section.get('uploader', cls.default_uploader)]
         return cls.from_config(section)
         
+    def path_matches(self, path):
+        return any(fnmatchcase(path, p) for p in self.paths)
         
     def process(self, path):
-        #TODO
-        pass
+        if self.processor is not None:
+            self._process_with_processor(path)
+        else:
+            self._process_without_processor(path)
                     
+    def _process_with_processor(self, path):
+        for filename, data in self.processor(path):
+            self.uploader.upload(filename, data)
+                   
+    def _process_without_processor(self, path):
+        with open(path) as f:
+            self.uploader.upload(os.path.basename(path), f.read())
                    
         
         
@@ -139,5 +186,3 @@ Relayer.uploaders['ftp'] = FTPUploader
 class SCPUploader(Uploader):
     pass
 Relayer.uploaders['scp'] = SCPUploader
-    
-

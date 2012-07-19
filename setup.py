@@ -19,13 +19,15 @@ setup(name='FTPRelayer',
     dependency_links = [
     ],
     install_requires=[
+       "configobj",
+       "validate",
        "paramiko",
        "ftputil<2.7",
        "pyinotify",
     ],
     extras_require = {
     },
-    tests_require = ["nose", "unittest2"],
+    tests_require = ["nose", "unittest2", "mox"],
     entry_points="""
     [console_scripts]
     ftprelayer = ftprelayer:main

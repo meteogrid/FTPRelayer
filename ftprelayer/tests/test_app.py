@@ -1,4 +1,5 @@
 import time
+import datetime
 import os.path
 import shutil
 import tempfile
@@ -15,9 +16,9 @@ class TestApplication(TestCase):
         from .. import Application
         return Application.from_config(fixture(self.config))
 
-    def _makeOne(self):
+    def _makeOne(self, **kw):
         from .. import Application
-        return Application()
+        return Application(**kw)
 
     def _makeRelayer(self, name='test', uploader=None, paths=None,
                      processor=None):
@@ -30,6 +31,10 @@ class TestApplication(TestCase):
         self.addCleanup(shutil.rmtree, dir)
         return dir
 
+    def test_app_is_properly_configured(self):
+        app = self._makeOneFromConfig()
+        self.assertIsInstance(app._cleanup, bool)
+        
     def test_all_relayers_are_parsed(self):
         app = self._makeOneFromConfig()
         self.failUnlessEqual(2, len(app._relayers))
@@ -41,7 +46,6 @@ class TestApplication(TestCase):
         self.failUnless(isinstance(app._relayers[1].uploader, SCPUploader))
 
     def test_paths_are_properly_configured(self):
-        from .. import SCPUploader, FTPUploader
         app = self._makeOneFromConfig()
         self.failUnlessEqual(3, len(app._relayers[0].paths))
         self.failUnlessEqual(2, len(app._relayers[1].paths))
@@ -49,7 +53,7 @@ class TestApplication(TestCase):
     def test_watch_new_file_creation(self):
         app = self._makeOne()
         dir = self._makeTempDir()
-        relayer = self._makeRelayer(paths=[dir])
+        relayer = self._makeRelayer(paths=[dir+'/*'])
         state  = {'called':False}
         def process(self):
             state['called'] = True
@@ -68,7 +72,7 @@ class TestApplication(TestCase):
         app = self._makeOne()
         dir = self._makeTempDir()
         dir2 = self._makeTempDir()
-        relayer = self._makeRelayer(paths=[dir])
+        relayer = self._makeRelayer(paths=[dir+'/*'])
         state  = {'called':False}
         def process(self):
             state['called'] = True
@@ -83,3 +87,34 @@ class TestApplication(TestCase):
         os.rename(path, os.path.join(dir, 'foo.txt'))
         time.sleep(.1)
         self.failUnless(state['called'])
+
+    def test_file_cleanup(self):
+        app = self._makeOne(cleanup=True)
+        dir = self._makeTempDir()
+        relayer = self._makeRelayer(paths=[dir+'/*'])
+        relayer.process = lambda s: True
+        app.add_relayer(relayer)
+        self.addCleanup(app.stop)
+        app.start()
+        fname = os.path.join(dir, 'foo.txt')
+        with open(fname, 'w') as f:
+            f.write('foo')
+        time.sleep(.1)
+        self.failUnless(not os.path.exists(fname))
+
+    def test_file_archival(self):
+        archive_dir = self._makeTempDir()
+        app = self._makeOne(archive_dir=archive_dir)
+        app.now = lambda: datetime.datetime(2009,6,7)
+        dir = self._makeTempDir()
+        relayer = self._makeRelayer(paths=[dir+'/*'])
+        relayer.process = lambda s: True
+        app.add_relayer(relayer)
+        self.addCleanup(app.stop)
+        app.start()
+        fname = os.path.join(dir, 'foo.txt')
+        with open(fname, 'w') as f:
+            f.write('foo')
+        time.sleep(.1)
+        self.failUnless(not os.path.exists(fname))
+        self.failUnless(os.path.exists(app._archive_path(fname)))
