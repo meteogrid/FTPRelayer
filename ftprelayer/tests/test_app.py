@@ -33,18 +33,35 @@ class TestApplication(TestCase):
 
     def test_all_relayers_are_parsed(self):
         app = self._makeOneFromConfig()
-        self.failUnlessEqual(2, len(app._relayers))
+        self.failUnlessEqual(4, len(app._relayers))
 
-    def test_uploaders_are_properly_configured(self):
+    def test_uploaders_are_properly_loaded_and_configured(self):
         from .. import SCPUploader, FTPUploader
         app = self._makeOneFromConfig()
-        self.failUnless(isinstance(app._relayers[0].uploader, FTPUploader))
-        self.failUnless(isinstance(app._relayers[1].uploader, SCPUploader))
+        self.assertIsInstance(app._relayers[0].uploader, FTPUploader)
+        self.failUnlessEqual(app._relayers[0].uploader.host, 'example.com')
+        self.failUnlessEqual(app._relayers[0].uploader.username, 'pepe')
+        self.failUnlessEqual(app._relayers[0].uploader.password, 'pepe2')
+
+        self.assertIsInstance(app._relayers[1].uploader, SCPUploader)
+        self.failUnlessEqual(app._relayers[1].uploader.host, 'example.org')
+        self.failUnlessEqual(app._relayers[1].uploader.username, 'pepe2')
+        self.failUnlessEqual(app._relayers[1].uploader.password, 'pepe22')
 
     def test_paths_are_properly_configured(self):
         app = self._makeOneFromConfig()
         self.failUnlessEqual(3, len(app._relayers[0].paths))
         self.failUnlessEqual(2, len(app._relayers[1].paths))
+
+    def test_processor_func_is_loaded(self):
+        app = self._makeOneFromConfig()
+        self.assertIs(app._relayers[2].processor, processor_func)
+
+    def test_processor_class_is_loaded_and_configured(self):
+        from .. import add_prefix
+        app = self._makeOneFromConfig()
+        self.assertIsInstance(app._relayers[3].processor, add_prefix)
+        self.failUnlessEqual(app._relayers[3].processor.prefix, 'foo')
 
     def test_watch_new_file_creation(self):
         app = self._makeOne()
@@ -100,3 +117,7 @@ class TestApplication(TestCase):
         time.sleep(.1)
         self.failUnless(not os.path.exists(fname))
         self.failUnless(os.path.exists(app._archive_path(fname)))
+
+def processor_func(path):
+    with open(path) as f:
+        yield path, f.read()

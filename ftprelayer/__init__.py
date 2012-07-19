@@ -111,7 +111,6 @@ class _EventProcessor(pyinotify.ProcessEvent):
 
 class Relayer(object):
     uploaders = {}
-    default_uploader = "ftp"
 
     def __init__(self, name, uploader, paths, processor=None):
         self.name = name
@@ -121,17 +120,27 @@ class Relayer(object):
 
     @classmethod
     def from_config(cls, name, section):
-        uploader = cls._make_uploader(section)
+        uploader = cls._make_uploader(section['uploader'])
+        processor = cls._make_processor(section['processor'])
         return cls(name=name,
-                   uploader=uploader,
                    paths=section['paths'],
-                   processor=import_string(section['processor']))
+                   uploader=uploader,
+                   processor=processor)
 
 
     @classmethod
     def _make_uploader(cls, section):
-        cls = cls.uploaders[section.get('uploader', cls.default_uploader)]
-        return cls.from_config(section)
+        cls = cls.uploaders[section['use']]
+        return cls.from_config(_extra_values(section))
+
+    @classmethod
+    def _make_processor(cls, section):
+        cls_or_func = import_string(section['use'])
+        if section.extra_values:
+            return cls_or_func(**_extra_values(section))
+        else:
+            return cls_or_func
+        
         
     def path_matches(self, path):
         return any(fnmatchcase(path, p) for p in self.paths)
@@ -150,6 +159,8 @@ class Relayer(object):
         with open(path) as f:
             self.uploader.upload(os.path.basename(path), f.read())
                    
+def _extra_values(section):
+    return dict((k, section[k]) for k in section.extra_values)
         
         
 class Uploader(object):
@@ -183,3 +194,12 @@ Relayer.uploaders['ftp'] = FTPUploader
 class SCPUploader(Uploader):
     pass
 Relayer.uploaders['scp'] = SCPUploader
+
+
+class add_prefix(object):
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def __call__(self, path):
+        with open(path) as f:
+            yield self.prefix+path, f.read()
