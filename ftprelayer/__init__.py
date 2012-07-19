@@ -1,3 +1,4 @@
+import sys
 import Queue
 import datetime
 import os
@@ -48,9 +49,12 @@ class Application(object):
         for name in section.sections:
             yield Relayer.from_config(name, section[name])
 
-    def start(self):
+    def start(self, block=False):
         self._notifier.start()
         self._queue_processor.start()
+        if block:
+            while True:
+                self._stopping.wait(1)
 
 
     def stop(self):
@@ -146,6 +150,7 @@ class Relayer(object):
         return any(fnmatchcase(path, p) for p in self.paths)
         
     def process(self, path):
+        log.info("Relayer '%s' processing '%s'", self.name, path)
         if self.processor is not None:
             self._process_with_processor(path)
         else:
@@ -203,3 +208,18 @@ class add_prefix(object):
     def __call__(self, path):
         with open(path) as f:
             yield self.prefix+path, f.read()
+
+def main():
+    logging.basicConfig(level=logging.INFO)
+    if len(sys.argv)<2:
+        print>>sys.stderr, "Usage %s <configfile>"%sys.argv[0]
+        sys.exit(-1)
+    app = Application.from_config(sys.argv[1])
+    try:
+        log.info("Starting app")
+        app.start(True)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        log.info("Stopping app")
+        app.stop()
