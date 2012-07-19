@@ -188,9 +188,11 @@ class FTPUploader(Uploader):
 
     def upload(self, filename, data):
         with self.FTPHost(self.host, self.username, self.password) as ftp:
-            dir = self.dir.rstrip('/') + '/'
-            ftp.makedirs(dir)
-            dest = ftp.file(dir+filename, 'w')
+            dir = self.dir.rstrip('/')
+            if dir:
+                ftp.makedirs(dir)
+                ftp.chdir(dir)
+            dest = ftp.file(filename, 'w')
             ftp.copyfileobj(StringIO(data), dest)
             dest.close()
 Relayer.uploaders['ftp'] = FTPUploader
