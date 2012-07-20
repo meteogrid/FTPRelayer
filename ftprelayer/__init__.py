@@ -59,8 +59,8 @@ class Application(object):
 
 
     def stop(self):
-        self._notifier.stop()
         self._stopping.set()
+        self._notifier.stop()
         self._notifier.join()
         
     def add_relayer(self, relayer):
