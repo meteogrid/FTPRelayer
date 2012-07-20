@@ -74,7 +74,7 @@ class Application(object):
     def stop(self):
         self._stopping.set()
         self._notifier.stop()
-        self._notifier.join()
+        self._queue_processor.join()
         
     def add_relayer(self, relayer):
         self._relayers.append(relayer)
