@@ -17,6 +17,7 @@ import pyinotify
 from .util import import_string
 
 log = logging.getLogger(__name__)
+LOG_FORMAT = "%(asctime)s %(process)d %(levelname)-5.5s [%(name)s] %(message)s"
 
 class Application(object):
     _watch_mask = (pyinotify.IN_CLOSE_WRITE | pyinotify.IN_MOVED_TO)
@@ -58,8 +59,9 @@ class Application(object):
 
 
     def stop(self):
-        self._stopping.set()
         self._notifier.stop()
+        self._stopping.set()
+        self._notifier.join()
         
     def add_relayer(self, relayer):
         self._relayers.append(relayer)
@@ -218,7 +220,7 @@ class add_prefix(object):
             yield new_name, f.read()
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
     if len(sys.argv)<2:
         print>>sys.stderr, "Usage %s <configfile>"%sys.argv[0]
         sys.exit(-1)
@@ -229,5 +231,5 @@ def main():
     except (KeyboardInterrupt, SystemExit):
         log.info("Stopping app")
         app.stop()
-    finally:
+    else:
         app.stop()
