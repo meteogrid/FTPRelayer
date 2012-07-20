@@ -155,7 +155,7 @@ class Relayer(object):
         return any(fnmatchcase(path, p) for p in self.paths)
 
     def relpathto(self, path):
-        base = os.path.commonprefix(self.paths)
+        base = os.path.commonprefix(self.paths+[path])
         return os.path.relpath(path, base)
         
     def process(self, path):

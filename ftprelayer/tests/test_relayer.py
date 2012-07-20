@@ -24,3 +24,7 @@ class TestRelayer(TestCaseWithMox):
         ob = self._makeOne(paths=['/var/zoo/bar/*', '/var/zoo/car/*'])
         self.failUnlessEqual('bar/foo.txt',
                              ob.relpathto('/var/zoo/bar/foo.txt'))
+
+    def test_relpathto_single_path(self):
+        ob = self._makeOne(paths=['/var/zoo/bar/*'])
+        self.failUnlessEqual('foo.txt', ob.relpathto('/var/zoo/bar/foo.txt'))
