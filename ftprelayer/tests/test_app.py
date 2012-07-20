@@ -1,6 +1,6 @@
+import os
 import time
 import datetime
-import os.path
 import shutil
 import tempfile
 import pkg_resources
@@ -104,9 +104,15 @@ class TestApplication(TestCase):
     def test_file_archival(self):
         archive_dir = self._makeTempDir()
         app = self._makeOne(archive_dir=archive_dir)
-        app.now = lambda: datetime.datetime(2009,6,7)
-        dir = self._makeTempDir()
-        relayer = self._makeRelayer(paths=[dir+'/*'])
+        cur_date = datetime.datetime(2009,6,7)
+        app.now = lambda: cur_date
+        common_dir = self._makeTempDir()
+        subdir = 'subdir'
+        dir = os.path.join(common_dir, subdir)
+        os.makedirs(dir)
+        relayer = self._makeRelayer(
+            paths=[os.path.join(dir, '*'),
+                   os.path.join(common_dir,  'other_dir', '*')])
         relayer.process = lambda s: True
         app.add_relayer(relayer)
         self.addCleanup(app.stop)
@@ -116,7 +122,12 @@ class TestApplication(TestCase):
             f.write('foo')
         time.sleep(.1)
         self.failUnless(not os.path.exists(fname))
-        self.failUnless(os.path.exists(app._archive_path(fname)))
+        archive_path = app._archive_path(relayer, fname)
+        self.assertIn(relayer.name, archive_path)
+        self.assertIn(cur_date.strftime('%Y/%m/%d'), archive_path)
+        self.assertIn(subdir, archive_path)
+        self.assertIn(os.path.basename(fname), archive_path)
+        self.failUnless(os.path.exists(archive_path))
 
 def processor_func(path):
     with open(path) as f:

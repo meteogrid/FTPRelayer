@@ -19,3 +19,8 @@ class TestRelayer(TestCaseWithMox):
 
         ob = self._makeOne(uploader=uploader)
         ob.process(f.name)
+
+    def test_relpathto(self):
+        ob = self._makeOne(paths=['/var/zoo/bar/*', '/var/zoo/car/*'])
+        self.failUnlessEqual('bar/foo.txt',
+                             ob.relpathto('/var/zoo/bar/foo.txt'))

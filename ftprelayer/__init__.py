@@ -80,21 +80,22 @@ class Application(object):
             else:
                 try:
                     relayer.process(path)
-                    self._archive(path)
+                    if self._archive_dir is not None:
+                        self._archive(relayer, path)
                 except:
                     log.exception("When processing %r, %r", relayer.name, path)
 
-    def _archive(self, path):
-        if self._archive_dir is not None:
-            dest = self._archive_path(path)
-            destdir = os.path.dirname(dest)
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
-            shutil.move(path, self._archive_path(path))
+    def _archive(self, relayer, path):
+        dest = self._archive_path(relayer, path)
+        destdir = os.path.dirname(dest)
+        if not os.path.exists(destdir):
+            os.makedirs(destdir)
+        shutil.move(path, self._archive_path(relayer, path))
 
-    def _archive_path(self, path):
-        subdir = self.now().strftime('%Y/%m/%d')
-        return os.path.join(self._archive_dir, subdir, os.path.basename(path))
+    def _archive_path(self, relayer, path):
+        subdir = os.path.join(self._archive_dir, relayer.name,
+                              self.now().strftime('%Y/%m/%d'))
+        return os.path.join(subdir, relayer.relpathto(path))
         
         
 
@@ -148,6 +149,10 @@ class Relayer(object):
         
     def path_matches(self, path):
         return any(fnmatchcase(path, p) for p in self.paths)
+
+    def relpathto(self, path):
+        base = os.path.commonprefix(self.paths)
+        return os.path.relpath(path, base)
         
     def process(self, path):
         log.info("Relayer '%s' processing '%s'", self.name, path)
