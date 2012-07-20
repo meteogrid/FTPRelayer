@@ -92,7 +92,9 @@ class Application(object):
         destdir = os.path.dirname(dest)
         if not os.path.exists(destdir):
             os.makedirs(destdir)
-        shutil.move(path, self._archive_path(relayer, path))
+        destpath = self._archive_path(relayer, path)
+        log.info("Archiving %s -> %s", path, destpath)
+        shutil.move(path, destpath)
 
     def _archive_path(self, relayer, path):
         subdir = os.path.join(self._archive_dir, relayer.name,
