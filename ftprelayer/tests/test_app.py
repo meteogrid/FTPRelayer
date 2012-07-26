@@ -36,7 +36,7 @@ class TestApplication(TestCase):
         self.failUnlessEqual(5, len(app._relayers))
 
     def test_uploaders_are_properly_loaded_and_configured(self):
-        from .. import SCPUploader, FTPUploader
+        from .. import SCPUploader, FTPUploader, _NullUploader
         app = self._makeOneFromConfig()
         self.assertIsInstance(app._relayers[0].uploader, FTPUploader)
         self.failUnlessEqual(app._relayers[0].uploader.host, 'example.com')
@@ -47,6 +47,8 @@ class TestApplication(TestCase):
         self.failUnlessEqual(app._relayers[1].uploader.host, 'example.org')
         self.failUnlessEqual(app._relayers[1].uploader.username, 'pepe2')
         self.failUnlessEqual(app._relayers[1].uploader.password, 'pepe22')
+
+        self.assertIsInstance(app._relayers[4].uploader, _NullUploader)
 
     def test_paths_are_properly_configured(self):
         app = self._makeOneFromConfig()
@@ -113,7 +115,6 @@ class TestApplication(TestCase):
         relayer = self._makeRelayer(
             paths=[os.path.join(dir, '*'),
                    os.path.join(common_dir,  'other_dir', '*')])
-        relayer.process = lambda s: True
         app.add_relayer(relayer)
         self.addCleanup(app.stop)
         app.start()
