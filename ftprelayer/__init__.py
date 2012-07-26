@@ -243,6 +243,27 @@ class add_prefix(object):
         with open(path) as f:
             yield new_name, f.read()
 
+class add_date_prefix(object):
+    """
+    Adds current date as a prefix
+
+        >>> processor = add_date_prefix('%Y_%m_')
+        >>> processor.now = lambda: datetime.datetime(2007,3,1)
+        >>> processor._new_name('foo')
+        '2007_03_foo'
+    """
+    now = datetime.datetime.now # To mock in tests
+
+    def __init__(self, format='%Y%m%d'):
+        self.format = format
+
+    def __call__(self, path):
+        with open(path) as f:
+            yield self._new_name(path), f.read()
+
+    def _new_name(self, path):
+        return self.now().strftime(self.format) + os.path.basename(path)
+
 def main():
     if len(sys.argv)<2:
         print>>sys.stderr, "Usage %s <configfile>"%sys.argv[0]
