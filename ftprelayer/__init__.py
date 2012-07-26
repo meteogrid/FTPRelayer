@@ -136,7 +136,7 @@ class Relayer(object):
 
     def __init__(self, name, uploader, paths, processor=None):
         self.name = name
-        self.uploader = uploader
+        self.uploader = uploader if uploader is not None else _NullUploader()
         self.paths = paths
         self.processor = processor
 
@@ -189,6 +189,15 @@ class Relayer(object):
 def _extra_values(section):
     return dict((k, section[k]) for k in section.extra_values)
         
+class _NullUploader(object):
+    def upload(self, filename, data):
+        pass
+
+    @classmethod
+    def from_config(cls, section):
+        return cls()
+Relayer.uploaders[None] = _NullUploader
+
         
 class Uploader(object):
     def __init__(self, host, username, password=None, dir='/'):
