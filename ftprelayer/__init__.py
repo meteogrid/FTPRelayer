@@ -1,3 +1,4 @@
+import re
 import sys
 import Queue
 import datetime
@@ -105,14 +106,23 @@ class Application(object):
         destdir = os.path.dirname(dest)
         if not os.path.exists(destdir):
             os.makedirs(destdir)
-        destpath = self._archive_path(relayer, path)
-        log.info("Archiving %s -> %s", path, destpath)
-        shutil.move(path, destpath)
+        log.info("Archiving %s -> %s", path, dest)
+        shutil.move(path, dest)
 
-    def _archive_path(self, relayer, path):
+    _serial_re = re.compile(r'^(.*?)\.(\d+)$')
+    def _archive_path(self, relayer, path, no_clobber=True):
         subdir = os.path.join(self._archive_dir, relayer.name,
                               self.now().strftime('%Y/%m/%d'))
-        return os.path.join(subdir, relayer.relpathto(path))
+        ret = os.path.join(subdir, relayer.relpathto(path))
+        while no_clobber and os.path.exists(ret):
+            m = self._serial_re.match(ret)
+            if m:
+                serial = int(m.group(2))
+                ret = m.group(1) + ('.%d'%(serial+1))
+            else:
+                ret += '.1'
+        return ret
+
         
         
 
