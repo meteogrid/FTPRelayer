@@ -213,7 +213,7 @@ class FTPUploader(Uploader):
             dir = self.dir.rstrip('/') + '/'
             ftp.makedirs(dir)
             destname = dir + filename
-            dest = ftp.file(destname, 'w')
+            dest = ftp.file(destname, 'wb')
             log.info("FTPUploader.upload: %s -> %s", filename, destname)
             ftp.copyfileobj(StringIO(data), dest)
             dest.close()
