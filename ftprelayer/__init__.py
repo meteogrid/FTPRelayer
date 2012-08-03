@@ -1,3 +1,4 @@
+import re
 import sys
 import Queue
 import datetime
@@ -105,14 +106,23 @@ class Application(object):
         destdir = os.path.dirname(dest)
         if not os.path.exists(destdir):
             os.makedirs(destdir)
-        destpath = self._archive_path(relayer, path)
-        log.info("Archiving %s -> %s", path, destpath)
-        shutil.move(path, destpath)
+        log.info("Archiving %s -> %s", path, dest)
+        shutil.move(path, dest)
 
-    def _archive_path(self, relayer, path):
+    _serial_re = re.compile(r'^(.*?)\.(\d+)$')
+    def _archive_path(self, relayer, path, no_clobber=True):
         subdir = os.path.join(self._archive_dir, relayer.name,
                               self.now().strftime('%Y/%m/%d'))
-        return os.path.join(subdir, relayer.relpathto(path))
+        ret = os.path.join(subdir, relayer.relpathto(path))
+        while no_clobber and os.path.exists(ret):
+            m = self._serial_re.match(ret)
+            if m:
+                serial = int(m.group(2))
+                ret = m.group(1) + ('.%d'%(serial+1))
+            else:
+                ret += '.1'
+        return ret
+
         
         
 
@@ -136,7 +146,7 @@ class Relayer(object):
 
     def __init__(self, name, uploader, paths, processor=None):
         self.name = name
-        self.uploader = uploader
+        self.uploader = uploader if uploader is not None else _NullUploader()
         self.paths = paths
         self.processor = processor
 
@@ -189,6 +199,15 @@ class Relayer(object):
 def _extra_values(section):
     return dict((k, section[k]) for k in section.extra_values)
         
+class _NullUploader(object):
+    def upload(self, filename, data):
+        pass
+
+    @classmethod
+    def from_config(cls, section):
+        return cls()
+Relayer.uploaders[None] = _NullUploader
+
         
 class Uploader(object):
     def __init__(self, host, username, password=None, dir='/'):
@@ -233,6 +252,27 @@ class add_prefix(object):
         new_name = self.prefix + os.path.basename(path)
         with open(path) as f:
             yield new_name, f.read()
+
+class add_date_prefix(object):
+    """
+    Adds current date as a prefix
+
+        >>> processor = add_date_prefix('%Y_%m_')
+        >>> processor.now = lambda: datetime.datetime(2007,3,1)
+        >>> processor._new_name('foo')
+        '2007_03_foo'
+    """
+    now = datetime.datetime.now # To mock in tests
+
+    def __init__(self, format='%Y%m%d'):
+        self.format = format
+
+    def __call__(self, path):
+        with open(path) as f:
+            yield self._new_name(path), f.read()
+
+    def _new_name(self, path):
+        return self.now().strftime(self.format) + os.path.basename(path)
 
 def main():
     if len(sys.argv)<2:
