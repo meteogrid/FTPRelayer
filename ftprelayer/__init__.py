@@ -8,6 +8,7 @@ import shutil
 from cStringIO import StringIO
 from threading import Thread, Event
 from fnmatch import fnmatchcase
+import zipfile
 
 import validate
 from configobj import ConfigObj
@@ -252,6 +253,21 @@ class add_prefix(object):
         new_name = self.prefix + os.path.basename(path)
         with open(path) as f:
             yield new_name, f.read()
+
+class add_prefix_to_zip_contents(object):
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def __call__(self, path):
+        buff = StringIO()
+        source = zipfile.ZipFile(path, 'r')
+        target = zipfile.ZipFile(buff, 'w', zipfile.ZIP_DEFLATED)
+        for zi in source.filelist:
+            new_name = self.prefix + zi.filename
+            target.writestr(new_name, source.read(zi))
+        source.close()
+        target.close()
+        yield os.path.basename(path), buff.getvalue()
 
 class add_date_prefix(object):
     """
