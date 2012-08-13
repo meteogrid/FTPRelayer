@@ -147,6 +147,39 @@ class TestApplication(TestCase):
         self.failUnless('.1' not in archive_path3)
         self.failUnless(archive_path3.endswith('.2'))
 
+    def test_two_relayers_can_watch_the_same_dir(self):
+        app = self._makeOne()
+        dir = self._makeTempDir()
+        state  = {'called1':False, 'called2':False}
+        relayer1 = self._makeRelayer(paths=[dir+'/*.1'])
+        def process1(self):
+            state['called1'] = True
+        relayer1.process = process1
+        app.add_relayer(relayer1)
+
+        relayer2 = self._makeRelayer(paths=[dir+'/*.2'])
+        def process2(self):
+            state['called2'] = True
+        relayer2.process = process2
+        app.add_relayer(relayer2)
+
+        self.addCleanup(app.stop)
+        app.start()
+
+        with open(os.path.join(dir, 'foo.1'), 'w') as f:
+            self.failUnless(not state['called1'])
+            f.write('foo')
+            self.failUnless(not state['called1'])
+        time.sleep(.1)
+        self.failUnless(state['called1'])
+
+        with open(os.path.join(dir, 'foo.2'), 'w') as f:
+            self.failUnless(not state['called2'])
+            f.write('foo')
+            self.failUnless(not state['called2'])
+        time.sleep(.1)
+        self.failUnless(state['called2'])
+
 def touch(path):
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):

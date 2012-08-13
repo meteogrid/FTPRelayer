@@ -30,6 +30,7 @@ class Application(object):
 
     def __init__(self, archive_dir=None):
         self._relayers = []
+        self._processors = {}
         self._wm = pyinotify.WatchManager()
         self._notifier = pyinotify.ThreadedNotifier(self._wm)
         self._queue_processor = Thread(target=self._process_queue)
@@ -84,9 +85,17 @@ class Application(object):
             self._add_watch(relayer, p)
 
     def _add_watch(self, relayer, path):
-        proc_fun = _EventProcessor(self._queue, relayer)
-        self._wm.add_watch(os.path.dirname(path), self._watch_mask,
-                           proc_fun=proc_fun)
+        dir = os.path.dirname(path)
+        processor = self._get_or_make_processor(dir)
+        processor.add_relayer(relayer)
+
+    def _get_or_make_processor(self, dir):
+        processor = self._processors.get(dir)
+        if processor is None:
+            processor = self._processors[dir] = _EventProcessor(self._queue)
+            self._wm.add_watch(dir, self._watch_mask,
+                               proc_fun=processor)
+        return processor
 
     def _process_queue(self):
         while not self._stopping.isSet():
@@ -128,18 +137,22 @@ class Application(object):
         
 
 class _EventProcessor(pyinotify.ProcessEvent):
-    def __init__(self, queue, relayer):
+    def __init__(self, queue):
         self.queue = queue
-        self.relayer = relayer
+        self.relayers = []
         super(_EventProcessor, self).__init__()
 
     def _process(self, event):
         log.debug("got event: %r", event)
-        if self.relayer.path_matches(event.pathname):
-            self.queue.put((self.relayer, event.pathname))
+        for r in self.relayers:
+            if r.path_matches(event.pathname):
+                self.queue.put((r, event.pathname))
 
     process_IN_CLOSE_WRITE = _process
     process_IN_MOVED_TO = _process
+
+    def add_relayer(self, relayer):
+        self.relayers.append(relayer)
 
 
 class Relayer(object):
