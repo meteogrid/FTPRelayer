@@ -267,6 +267,33 @@ class add_prefix(object):
         with open(path) as f:
             yield new_name, f.read()
 
+# TODO: Hay manera de meter esto en aemet.py?
+class EosUploader(Uploader):
+    now = datetime.datetime.utcnow # To mock in tests
+    @classmethod
+    def from_config(cls, section):
+        return cls(section['destinations'])
+        
+    def __init__(self, destinations):
+        self.destinations = destinations
+
+    def upload(self, filename, data):
+        for destination in self.destinations:
+            try:
+                os.makedirs(destination)
+            except os.error:
+                pass 
+            dest_file = os.path.join(destination,filename)
+            if os.path.exists(dest_file):
+                if open(dest_file).read() != data:
+                    # ALARMA
+                    log.error("EosUploader.upload: %s -> %s", filename, dest_file)
+                    os.rename(dest_file, dest_file + '.' + self.now().strftime('%Y-%m-%d_%H-%M-%S'))
+            open(dest_file, 'wb').write(data)
+            
+Relayer.uploaders['eos'] = EosUploader
+
+
 class add_prefix_to_zip_contents(object):
     def __init__(self, prefix):
         self.prefix = prefix
