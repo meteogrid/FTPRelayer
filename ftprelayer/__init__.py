@@ -288,7 +288,9 @@ class EosUploader(Uploader):
                 if open(dest_file).read() != data:
                     # ALARMA
                     log.error("EosUploader.upload: %s -> %s", filename, dest_file)
-                    os.rename(dest_file, dest_file + '.' + self.now().strftime('%Y-%m-%d_%H-%M-%S'))
+                    os.rename(dest_file, dest_file + self.now().strftime('.OTRO_POSTERIOR %Y-%m-%d_%H-%M-%S'))
+                else:
+                    continue
             open(dest_file, 'wb').write(data)
             
 Relayer.uploaders['eos'] = EosUploader
