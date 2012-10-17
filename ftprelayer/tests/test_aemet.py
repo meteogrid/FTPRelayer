@@ -10,7 +10,7 @@ import shutil
 class TestRelayer(TestCaseWithMox):
     def _makeOne(self, name='test', uploader=None, paths=None, processor=None):
         from ..aemet import aemet_rename
-        return aemet_rename()
+        return aemet_rename
 
     def test_zip_ok(self):
         f = tempfile.NamedTemporaryFile(suffix='.zip')
@@ -120,6 +120,6 @@ class TestEosUploader(TestCaseWithMox):
             uploader.upload('xx', 'data')
             for dest in destinations:
                 self.failUnlessEqual(open(os.path.join(dest,'xx')).read(), 'data')
-            self.failUnlessEqual(open(os.path.join(dest2,'xx.2010-11-12_13-14-00')).read(), 'otro')
+            self.failUnlessEqual(open(os.path.join(dest2,'xx.OTRO_POSTERIOR 2010-11-12_13-14-00')).read(), 'otro')
         finally:
             shutil.rmtree(dtemp)

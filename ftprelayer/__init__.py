@@ -287,8 +287,9 @@ class EosUploader(Uploader):
             if os.path.exists(dest_file):
                 if open(dest_file).read() != data:
                     # ALARMA
-                    log.error("EosUploader.upload: %s -> %s", filename, dest_file)
-                    os.rename(dest_file, dest_file + self.now().strftime('.OTRO_POSTERIOR %Y-%m-%d_%H-%M-%S'))
+                    old_file_name = dest_file + self.now().strftime('.OTRO_POSTERIOR %Y-%m-%d_%H-%M-%S')
+                    log.critical("EosUploader.upload: %s -> %s", dest_file, old_file_name)
+                    os.rename(dest_file, old_file_name)
                 else:
                     continue
             open(dest_file, 'wb').write(data)
