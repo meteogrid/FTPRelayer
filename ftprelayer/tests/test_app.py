@@ -33,7 +33,7 @@ class TestApplication(TestCase):
 
     def test_all_relayers_are_parsed(self):
         app = self._makeOneFromConfig()
-        self.failUnlessEqual(6, len(app._relayers))
+        self.failUnlessEqual(5, len(app._relayers))
 
     def test_uploaders_are_properly_loaded_and_configured(self):
         from .. import SCPUploader, FTPUploader, _NullUploader
