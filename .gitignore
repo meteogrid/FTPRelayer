@@ -2,3 +2,12 @@ Env
 *.egg-info
 *.sw[po]
 *.pyc
+*~
+.*
+lib
+bin
+build
+dist
+include
+
+

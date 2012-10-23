@@ -9,6 +9,7 @@ from cStringIO import StringIO
 from threading import Thread, Event
 from fnmatch import fnmatchcase
 import zipfile
+from logging import Formatter
 
 import validate
 from configobj import ConfigObj
@@ -18,9 +19,11 @@ import pyinotify
 
 from .util import import_string
 
+
 log = logging.getLogger(__name__)
 
 LOG_FORMAT = "%(asctime)s %(process)d %(levelname)-5.5s [%(name)s] %(message)s"
+SYSLOG_FORMAT = "%(name)s [%(process)d]: %(levelname)-5.5s %(message)s"
 
 class Application(object):
     _watch_mask = (pyinotify.IN_CLOSE_WRITE | pyinotify.IN_MOVED_TO)
@@ -60,7 +63,14 @@ class Application(object):
             stream = sys.stderr if not config['filename'] else None,
             format = LOG_FORMAT,
             )
-
+        if config['syslog']['address']:
+            from logging.handlers import SysLogHandler
+            cfg = dict(config['syslog'])
+            if ':' in cfg['address']:
+                cfg['address'] = cfg['address'].split(',')
+            handler = logging.handlers.SysLogHandler(**cfg)
+            handler.setFormatter(Formatter(SYSLOG_FORMAT))
+            logging.root.addHandler(handler)
 
     def _relayers_from_config(self, section):
         for name in section.sections:
@@ -176,7 +186,10 @@ class Relayer(object):
 
     @classmethod
     def _make_uploader(cls, section):
-        cls = cls.uploaders[section['use']]
+        if section['use'] and ':' in section['use']:
+            cls = import_string(section['use'])
+        else:
+            cls = cls.uploaders[section['use']]
         return cls.from_config(_extra_values(section))
 
     @classmethod
@@ -266,6 +279,9 @@ class add_prefix(object):
         new_name = self.prefix + os.path.basename(path)
         with open(path) as f:
             yield new_name, f.read()
+
+
+
 
 class add_prefix_to_zip_contents(object):
     def __init__(self, prefix):
