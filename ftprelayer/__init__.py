@@ -266,7 +266,7 @@ class CompositeUploader(Uploader):
         for k, uploader in self.uploaders.items():
             try:
                 uploader(filename, data)
-            except Exception as e:
+            except:
                 log.exception("ejecutando %r, %r", k, filename)
 
 Relayer.uploaders['composite'] = CompositeUploader
