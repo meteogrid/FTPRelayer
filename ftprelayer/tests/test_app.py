@@ -123,7 +123,7 @@ class TestApplication(TestCase):
             f.write('foo')
         time.sleep(.1)
         self.failUnless(not os.path.exists(fname))
-        archive_path = app._archive_path(relayer, fname, False)
+        archive_path = app._archive_path(relayer, fname, no_clobber=False)
         self.assertIn(relayer.name, archive_path)
         self.assertIn(cur_date.strftime('%Y/%m/%d'), archive_path)
         self.assertIn(subdir, archive_path)
@@ -146,6 +146,36 @@ class TestApplication(TestCase):
         self.assertNotEqual(archive_path2, archive_path3)
         self.failUnless('.1' not in archive_path3)
         self.failUnless(archive_path3.endswith('.2'))
+
+    def test_file_archival_with_error(self):
+        archive_dir = self._makeTempDir()
+        app = self._makeOne(archive_dir=archive_dir)
+        cur_date = datetime.datetime(2009,6,7)
+        app.now = lambda: cur_date
+        common_dir = self._makeTempDir()
+        subdir = 'subdir'
+        dir = os.path.join(common_dir, subdir)
+        os.makedirs(dir)
+        relayer = self._makeRelayer(
+            paths=[os.path.join(dir, '*'),
+                   os.path.join(common_dir,  'other_dir', '*')])
+        def raise_error(*args, **kw): raise RuntimeError
+        relayer.process = raise_error
+        app.add_relayer(relayer)
+        self.addCleanup(app.stop)
+        app.start()
+        fname = os.path.join(dir, 'foo.txt')
+        with open(fname, 'w') as f:
+            f.write('foo')
+        time.sleep(.1)
+        self.failUnless(not os.path.exists(fname))
+        archive_path = app._archive_path(relayer, fname, no_clobber=False,
+                                         has_error=True)
+        self.assertIn(relayer.name, archive_path)
+        self.assertIn(cur_date.strftime('%Y/%m/%d'), archive_path)
+        self.assertIn(subdir, archive_path)
+        self.assertIn(os.path.basename(fname), archive_path)
+        self.failUnless(os.path.exists(archive_path))
 
     def test_two_relayers_can_watch_the_same_dir(self):
         app = self._makeOne()

@@ -28,6 +28,7 @@ SYSLOG_FORMAT = "%(name)s [%(process)d]: %(levelname)-5.5s %(message)s"
 class Application(object):
     _watch_mask = (pyinotify.IN_CLOSE_WRITE | pyinotify.IN_MOVED_TO)
     configspec_filename = resource_filename(__name__, 'configspec.ini')
+    error_subdir = 'failed'
 
     now = datetime.datetime.now # To mock in tests
 
@@ -116,13 +117,15 @@ class Application(object):
             else:
                 try:
                     relayer.process(path)
-                    if self._archive_dir is not None:
-                        self._archive(relayer, path)
+                    self._archive(relayer, path)
                 except:
                     log.exception("When processing %r, %r", relayer.name, path)
+                    self._archive(relayer, path, has_error=True)
 
-    def _archive(self, relayer, path):
-        dest = self._archive_path(relayer, path)
+    def _archive(self, relayer, path, has_error=False):
+        if self._archive_dir is None:
+            return
+        dest = self._archive_path(relayer, path, has_error=has_error)
         destdir = os.path.dirname(dest)
         if not os.path.exists(destdir):
             os.makedirs(destdir)
@@ -130,9 +133,11 @@ class Application(object):
         shutil.move(path, dest)
 
     _serial_re = re.compile(r'^(.*?)\.(\d+)$')
-    def _archive_path(self, relayer, path, no_clobber=True):
-        subdir = os.path.join(self._archive_dir, relayer.name,
-                              self.now().strftime('%Y/%m/%d'))
+    def _archive_path(self, relayer, path, no_clobber=True, has_error=False):
+        dir = self._archive_dir
+        if has_error:
+            dir = os.path.join(dir, self.error_subdir)
+        subdir = os.path.join(dir, relayer.name, self.now().strftime('%Y/%m/%d'))
         ret = os.path.join(subdir, relayer.relpathto(path))
         while no_clobber and os.path.exists(ret):
             m = self._serial_re.match(ret)
