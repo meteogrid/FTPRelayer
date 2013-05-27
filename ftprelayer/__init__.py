@@ -251,6 +251,24 @@ class Uploader(object):
     def upload(self, filename, data):
         raise NotImplementedError("Abstract method must be overriden")
 
+
+class CompositeUploader(Uploader):
+    @classmethod
+    def from_config(cls, section):
+        return cls(section)
+
+    def __init__(self, uploaders):
+        self.uploaders = {}
+        for k, v in uploaders.iteritems():
+            self.uploaders[k] = Uploader.from_config(v)
+
+    def upload(self, filename, data):
+        for uploader in self.uploaders.values():
+            uploader(filename, data)
+
+Relayer.uploaders['composite'] = CompositeUploader
+
+
 class FTPUploader(Uploader):
     FTPHost = FTPHost  # for mock inyection in tests
 
