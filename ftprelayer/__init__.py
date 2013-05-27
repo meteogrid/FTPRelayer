@@ -263,15 +263,11 @@ class CompositeUploader(Uploader):
             self.uploaders[k] = Uploader.from_config(v)
 
     def upload(self, filename, data):
-        errors = []
         for k, uploader in self.uploaders.items():
             try:
                 uploader(filename, data)
             except Exception as e:
-                errors.append(k)
                 log.exception("ejecutando %r, %r", k, filename)
-        if errors:
-            raise RuntimeError(errors)
 
 Relayer.uploaders['composite'] = CompositeUploader
 
