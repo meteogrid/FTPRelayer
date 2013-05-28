@@ -30,7 +30,7 @@ class TestFTPUploader(TestCaseWithMox):
             return f.getvalue()==data
         ftp.copyfileobj(Func(verify_filecontent), mockfile)
         mockfile.close()
-        ftp.__exit__(IgnoreArg(), IgnoreArg(), IgnoreArg())
+        ftp.__exit__(None, None, None)
 
         self.mox.ReplayAll()
 
