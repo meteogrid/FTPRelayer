@@ -6,6 +6,8 @@ import tempfile
 import pkg_resources
 from unittest2 import TestCase
 
+from . import TestCaseWithMox
+
 def fixture(s):
     return pkg_resources.resource_filename(__name__, s)
 
@@ -220,3 +222,40 @@ def touch(path):
 def processor_func(path):
     with open(path) as f:
         yield path, f.read()
+
+
+class TestMain(TestCaseWithMox):
+    def test_too_few_args(self):
+        import ftprelayer
+        self.assertEqual(-1, ftprelayer.main(['./ftprelayer']))
+
+    def test_good_run(self):
+        import ftprelayer
+        self.mox.StubOutClassWithMocks(ftprelayer, 'Application')
+        self.mox.StubOutWithMock(ftprelayer, 'log')
+        app = ftprelayer.Application
+
+        args = ['./ftprelayer', 'som_config']
+        app.from_config(args[1]).AndReturn(app)
+        ftprelayer.log.info("Starting app")
+        app.start(True)
+        app.stop()
+
+        self.mox.ReplayAll()
+        ftprelayer.main(args)
+
+    def test_app_stops(self):
+        import ftprelayer
+        self.mox.StubOutClassWithMocks(ftprelayer, 'Application')
+        self.mox.StubOutWithMock(ftprelayer, 'log')
+        app = ftprelayer.Application
+
+        args = ['./ftprelayer', 'som_config']
+        app.from_config(args[1]).AndReturn(app)
+        ftprelayer.log.info("Starting app")
+        app.start(True).AndRaise(KeyboardInterrupt)
+        ftprelayer.log.info("Stopping app")
+        app.stop()
+
+        self.mox.ReplayAll()
+        ftprelayer.main(args)

@@ -271,6 +271,7 @@ class FTPUploader(Uploader):
 Relayer.uploaders['ftp'] = FTPUploader
 
     
+#TODO
 class SCPUploader(Uploader):
     pass
 Relayer.uploaders['scp'] = SCPUploader
@@ -324,11 +325,11 @@ class add_date_prefix(object):
     def _new_name(self, path):
         return self.now().strftime(self.format) + os.path.basename(path)
 
-def main():
-    if len(sys.argv)<2:
-        print>>sys.stderr, "Usage %s <configfile>"%sys.argv[0]
-        sys.exit(-1)
-    app = Application.from_config(sys.argv[1])
+def main(args=sys.argv):
+    if len(args)<2:
+        print>>sys.stderr, "Usage %s <configfile>"%args[0]
+        return -1
+    app = Application.from_config(args[1])
     try:
         log.info("Starting app")
         app.start(True)
