@@ -260,12 +260,12 @@ class CompositeUploader(Uploader):
     def __init__(self, uploaders):
         self.uploaders = {}
         for k, v in uploaders.iteritems():
-            self.uploaders[k] = Uploader.from_config(v)
+            self.uploaders[k] = Relayer._make_uploader(v)
 
     def upload(self, filename, data):
         for k, uploader in self.uploaders.items():
             try:
-                uploader(filename, data)
+                uploader.upload(filename, data)
             except:
                 log.exception("ejecutando %r, %r", k, filename)
 
