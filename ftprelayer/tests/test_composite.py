@@ -1,40 +1,35 @@
-from configobj import ConfigObj
 
-from . import TestCase
-from StringIO import StringIO
+from . import TestCaseWithMox
 
-
-class _DummyUploader(object):
-    def __init__(self):
-        self.files = {}
-
-    def upload(self, filename, data):
-        self.files[filename] = data
-
-    @classmethod
-    def from_config(cls, section):
-        return cls()
-
-
-class TestCompositeUploader(TestCase):
-    def _makeOne(self, section):
+class TestCompositeUploader(TestCaseWithMox):
+    def _makeOne(self, uploaders):
         from .. import CompositeUploader
-        return CompositeUploader(section)
+        return CompositeUploader(uploaders)
 
-    def test_upload(self):
-        _ini = '''
-        [uploaders]
-            [[up1]]
-                use=ftprelayer.tests.test_composite:_DummyUploader
-            [[up2]]
-                use=ftprelayer.tests.test_composite:_DummyUploader
-        '''
-        filename = 'some_file'
+    def test_delegates_to_uploaders(self):
+        from .. import Uploader
+        filename = 'some_filename'
         data = 'some_data'
-        conf = ConfigObj(StringIO(_ini))
-        section = conf['uploaders']
-        ob = self._makeOne(section)
-
+        # Crea los mock y 'graba' las llamadas que espera que se hagan sobre
+        # ellos
+        up1 = self.mox.CreateMock(Uploader)
+        up1.upload(filename, data)
+        up2 = self.mox.CreateMock(Uploader)
+        up2.upload(filename, data)
+        self.mox.ReplayAll()
+        ob = self._makeOne([up1, up2])
         ob.upload(filename, data)
-        for u in ob.uploaders.values():  # FIXME: Accede a la implementacion
-            self.failUnlessEqual(u.files, {filename: data})
+
+    def test_if_one_uploader_fails_others_are_executed(self):
+        from .. import Uploader
+        filename = 'some_filename'
+        data = 'some_data'
+        # Crea los mock y 'graba' las llamadas que espera que se hagan sobre
+        # ellos
+        up1 = self.mox.CreateMock(Uploader)
+        up1.upload(filename, data).AndRaise(RuntimeError)
+        up2 = self.mox.CreateMock(Uploader)
+        up2.upload(filename, data)
+        self.mox.ReplayAll()
+        ob = self._makeOne([up1, up2])
+        ob.upload(filename, data)

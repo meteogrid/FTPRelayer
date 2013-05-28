@@ -54,7 +54,7 @@ class TestApplication(TestCase):
         self.assertIsInstance(app._relayers[5].uploader, CompositeUploader)
         sub_uploaders = app._relayers[5].uploader.uploaders
         self.failUnlessEqual(len(sub_uploaders), 2)
-        for v in sub_uploaders.values():
+        for v in sub_uploaders:
             self.assertIsInstance(v, Uploader)
 
     def test_paths_are_properly_configured(self):
