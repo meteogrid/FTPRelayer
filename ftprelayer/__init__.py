@@ -171,7 +171,6 @@ class _EventProcessor(pyinotify.ProcessEvent):
 
 
 class Relayer(object):
-    uploaders = {}
 
     def __init__(self, name, uploader, paths, processor=None):
         self.name = name
@@ -181,21 +180,13 @@ class Relayer(object):
 
     @classmethod
     def from_config(cls, name, section):
-        uploader = cls.uploader_from_config(section['uploader'])
+        uploader = Uploader.from_config(section['uploader'])
         processor = cls._make_processor(section['processor'])
         return cls(name=name,
                    paths=section['paths'],
                    uploader=uploader,
                    processor=processor)
 
-
-    @classmethod
-    def uploader_from_config(cls, section):
-        if section['use'] and ':' in section['use']:
-            cls = import_string(section['use'])
-        else:
-            cls = cls.uploaders[section['use']]
-        return cls.from_config(section)
 
     @classmethod
     def _make_processor(cls, section):
@@ -230,17 +221,11 @@ class Relayer(object):
             self.uploader.upload(os.path.basename(path), f.read())
                    
         
-class _NullUploader(object):
-    def upload(self, filename, data):
-        pass
-
-    @classmethod
-    def from_config(cls, section):
-        return cls()
-Relayer.uploaders[None] = _NullUploader
 
         
 class Uploader(object):
+    __uploaders__ = {}
+
     def __init__(self, host, username, password=None, dir='/'):
         self.host = host
         self.username = username
@@ -248,18 +233,40 @@ class Uploader(object):
         self.dir = dir
 
     @classmethod
+    def register(cls, key):
+        def wrap(subcls):
+            cls.__uploaders__[key] = subcls
+            return subcls
+        return wrap
+    
+    @classmethod
     def from_config(cls, section):
-        return cls(section['host'], section['username'],
-                   section.get('password'), section.get('dir','/'))
+        if section['use'] and ':' in section['use']:
+            subcls = import_string(section['use'])
+        else:
+            subcls = cls.__uploaders__[section['use']]
+        if cls is subcls:
+            raise AssertionError("%r must override from_config()"%subcls)
+        return subcls.from_config(section)
+
         
     def upload(self, filename, data):
         raise NotImplementedError("Abstract method must be overriden")
 
+@Uploader.register(None)
+class _NullUploader(object):
+    def upload(self, filename, data):
+        pass
 
+    @classmethod
+    def from_config(cls, section):
+        return cls()
+
+@Uploader.register('composite')
 class CompositeUploader(Uploader):
     @classmethod
     def from_config(cls, section):
-        build = Relayer.uploader_from_config
+        build = Uploader.from_config
         uploaders = [build(section[name]) for name in sorted(section.sections)]
         return cls(uploaders)
 
@@ -273,11 +280,15 @@ class CompositeUploader(Uploader):
             except:
                 log.exception("executing %r, %r", uploader, filename)
 
-Relayer.uploaders['composite'] = CompositeUploader
 
-
+@Uploader.register('ftp')
 class FTPUploader(Uploader):
     FTPHost = FTPHost  # for mock inyection in tests
+
+    @classmethod
+    def from_config(cls, section):
+        return cls(section['host'], section['username'],
+                   section.get('password'), section.get('dir','/'))
 
     def upload(self, filename, data):
         with self.FTPHost(self.host, self.username, self.password) as ftp:
@@ -288,13 +299,12 @@ class FTPUploader(Uploader):
             log.info("FTPUploader.upload: %s -> %s", filename, destname)
             ftp.copyfileobj(StringIO(data), dest)
             dest.close()
-Relayer.uploaders['ftp'] = FTPUploader
 
     
-#TODO
-class SCPUploader(Uploader):
-    pass
-Relayer.uploaders['scp'] = SCPUploader
+@Uploader.register('scp')
+class SCPUploader(FTPUploader):
+    def upload(self, filename, data):
+        raise NotImplementedError("TODO")
 
 
 class add_prefix(object):
