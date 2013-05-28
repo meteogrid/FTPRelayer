@@ -35,10 +35,11 @@ class TestApplication(TestCase):
 
     def test_all_relayers_are_parsed(self):
         app = self._makeOneFromConfig()
-        self.failUnlessEqual(5, len(app._relayers))
+        self.failUnlessEqual(6, len(app._relayers))
 
     def test_uploaders_are_properly_loaded_and_configured(self):
-        from .. import SCPUploader, FTPUploader, _NullUploader
+        from .. import (CompositeUploader, SCPUploader, FTPUploader,
+                         _NullUploader, Uploader)
         app = self._makeOneFromConfig()
         self.assertIsInstance(app._relayers[0].uploader, FTPUploader)
         self.failUnlessEqual(app._relayers[0].uploader.host, 'example.com')
@@ -51,6 +52,12 @@ class TestApplication(TestCase):
         self.failUnlessEqual(app._relayers[1].uploader.password, 'pepe22')
 
         self.assertIsInstance(app._relayers[4].uploader, _NullUploader)
+
+        self.assertIsInstance(app._relayers[5].uploader, CompositeUploader)
+        sub_uploaders = app._relayers[5].uploader.uploaders
+        self.failUnlessEqual(len(sub_uploaders), 2)
+        for v in sub_uploaders:
+            self.assertIsInstance(v, Uploader)
 
     def test_paths_are_properly_configured(self):
         app = self._makeOneFromConfig()

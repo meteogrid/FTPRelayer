@@ -181,7 +181,7 @@ class Relayer(object):
 
     @classmethod
     def from_config(cls, name, section):
-        uploader = cls._make_uploader(section['uploader'])
+        uploader = cls.uploader_from_config(section['uploader'])
         processor = cls._make_processor(section['processor'])
         return cls(name=name,
                    paths=section['paths'],
@@ -190,18 +190,19 @@ class Relayer(object):
 
 
     @classmethod
-    def _make_uploader(cls, section):
+    def uploader_from_config(cls, section):
         if section['use'] and ':' in section['use']:
             cls = import_string(section['use'])
         else:
             cls = cls.uploaders[section['use']]
-        return cls.from_config(_extra_values(section))
+        return cls.from_config(section)
 
     @classmethod
     def _make_processor(cls, section):
         cls_or_func = import_string(section['use'])
         if section.extra_values:
-            return cls_or_func(**_extra_values(section))
+            args = dict((k, section[k]) for k in section.extra_values)
+            return cls_or_func(**args)
         else:
             return cls_or_func
         
@@ -228,8 +229,6 @@ class Relayer(object):
         with open(path) as f:
             self.uploader.upload(os.path.basename(path), f.read())
                    
-def _extra_values(section):
-    return dict((k, section[k]) for k in section.extra_values)
         
 class _NullUploader(object):
     def upload(self, filename, data):
@@ -255,6 +254,27 @@ class Uploader(object):
         
     def upload(self, filename, data):
         raise NotImplementedError("Abstract method must be overriden")
+
+
+class CompositeUploader(Uploader):
+    @classmethod
+    def from_config(cls, section):
+        build = Relayer.uploader_from_config
+        uploaders = [build(section[name]) for name in sorted(section.sections)]
+        return cls(uploaders)
+
+    def __init__(self, uploaders):
+        self.uploaders = uploaders
+
+    def upload(self, filename, data):
+        for uploader in self.uploaders:
+            try:
+                uploader.upload(filename, data)
+            except:
+                log.exception("executing %r, %r", uploader, filename)
+
+Relayer.uploaders['composite'] = CompositeUploader
+
 
 class FTPUploader(Uploader):
     FTPHost = FTPHost  # for mock inyection in tests
