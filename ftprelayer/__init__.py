@@ -317,7 +317,7 @@ class add_prefix(object):
             yield new_name, f.read()
 
 def rename_predictia(path):
-    parts = path.split('.')
+    parts = os.path.basename(path).split('.')
     ext = parts[-1]
     fname = '.'.join(parts[:-1])
     parts2 = fname.split('_')

@@ -41,7 +41,7 @@ class Test_rename_predictia(TestCase):
         try:
             with open(old, 'w') as f:
                 f.write("...")
-            self.failUnlessEqual(self._callSUT(old).next()[0], '/tmp/oper_d01_2014032700.nc')
+            self.failUnlessEqual(self._callSUT(old).next()[0], 'oper_d01_2014032700.nc')
         finally:
             try:
                 os.unlink(old)
