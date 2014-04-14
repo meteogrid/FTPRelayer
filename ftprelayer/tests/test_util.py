@@ -30,3 +30,12 @@ class Test_add_prefix_to_zip_contents(TestCase):
         self.failUnlessEqual(len(files), len(zfile.filelist))
         for f in zfile.filelist:
             self.failUnless(f.filename.startswith(prefix))
+
+class Test_rename_predictia(TestCase):
+    def _callSUT(self, *args):
+        from .. import rename_predictia
+        return rename_predictia(*args)
+
+    def test_it_renames(self):
+        old = 'oper_d01_2014032700_2014033000.nc'
+        self.failUnlessEqual(self._callSUT(old), 'oper_d01_2014032700.nc')
