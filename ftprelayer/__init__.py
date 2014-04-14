@@ -316,8 +316,11 @@ class add_prefix(object):
         with open(path) as f:
             yield new_name, f.read()
 
-
-
+def rename_predictia(path):
+    parts = path.split('.')
+    fname = '.'.join(parts[:-1])
+    ext = parts[-1]
+    return fname.split('_')[0]+'.'+ext
 
 class add_prefix_to_zip_contents(object):
     def __init__(self, prefix):
