@@ -37,5 +37,13 @@ class Test_rename_predictia(TestCase):
         return rename_predictia(*args)
 
     def test_it_renames(self):
-        old = 'oper_d01_2014032700_2014033000.nc'
-        self.failUnlessEqual(self._callSUT(old), 'oper_d01_2014032700.nc')
+        old = '/tmp/oper_d01_2014032700_2014033000.nc'
+        try:
+            with open(old, 'w') as f:
+                f.write("...")
+            self.failUnlessEqual(self._callSUT(old).next()[0], '/tmp/oper_d01_2014032700.nc')
+        finally:
+            try:
+                os.unlink(old)
+            except:
+                pass
