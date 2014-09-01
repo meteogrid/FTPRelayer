@@ -120,7 +120,10 @@ class Application(object):
                     self._archive(relayer, path)
                 except:
                     log.exception("When processing %r, %r", relayer.name, path)
-                    self._archive(relayer, path, has_error=True)
+                    try:
+                        self._archive(relayer, path, has_error=True)
+                    except:
+                        pass
 
     def _archive(self, relayer, path, has_error=False):
         if self._archive_dir is None:
