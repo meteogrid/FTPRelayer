@@ -23,6 +23,7 @@ setup(name='FTPRelayer',
        #"paramiko",
        "ftputil<2.7",
        "pyinotify",
+       "davclient",
     ],
     extras_require = {
     },

@@ -16,6 +16,7 @@ from configobj import ConfigObj
 from ftputil import FTPHost
 from pkg_resources import resource_filename
 import pyinotify
+import davclient
 
 from .util import import_string
 
@@ -303,7 +304,25 @@ class FTPUploader(Uploader):
             ftp.copyfileobj(StringIO(data), dest)
             dest.close()
 
-    
+
+@Uploader.register('dav')
+class DAVUploader(Uploader):
+    DAVClient = davclient.DAVClient  # for mock inyection in tests
+
+    @classmethod
+    def from_config(cls, section):
+        return cls(section['host'], section['username'],
+                   section.get('password'))
+
+    def upload(self, filename, data):
+        client = self.DAVClient(self.host)
+        client.set_basic_auth(self.username, self.password)
+        destname = self.host + filename
+        log.info("DAVUploader.upload: %s -> %s", filename, destname)
+        client.put(destname, data)
+        assert 200 <= client.response.status < 300, client.response.reason
+
+
 @Uploader.register('scp')
 class SCPUploader(FTPUploader):
     def upload(self, filename, data):
