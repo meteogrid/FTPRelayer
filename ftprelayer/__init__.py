@@ -339,12 +339,13 @@ class add_prefix(object):
             yield new_name, f.read()
 
 def rename_predictia(path):
-    parts = path.split('.')
+    parts = os.path.basename(path).split('.')
     ext = parts[-1]
     fname = '.'.join(parts[:-1])
     parts2 = fname.split('_')
     fname2 = '_'.join(parts2[:-1])
-    return fname2 + '.' + ext
+    with open(path) as f:
+        yield fname2 + '.' + ext, f.read()
 
 class add_prefix_to_zip_contents(object):
     def __init__(self, prefix):
