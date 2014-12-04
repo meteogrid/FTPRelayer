@@ -119,9 +119,9 @@ class Application(object):
                 try:
                     relayer.process(path)
                     self._archive(relayer, path)
-                except:
-                    log.exception("When processing %r, %r", relayer.name, path)
+                except Exception as e:
                     try:
+                        log.exception("When processing %r, %r, %r", relayer.name, path, e)
                         self._archive(relayer, path, has_error=True)
                     except:
                         pass
