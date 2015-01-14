@@ -20,7 +20,7 @@ setup(name='FTPRelayer',
     ],
     install_requires=[
        "configobj",
-       "ftputil<2.7",
+       "ftputil",
        "pyinotify",
        "davclient",
     ],
