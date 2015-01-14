@@ -8,7 +8,7 @@ class TestFTPUploader(TestCaseWithMox):
         return FTPUploader(host, username, password, dir)
     
     def test_upload(self):
-        from ftputil import FTPHost
+        import ftputil
 
         filename = 'some_file'
         data = 'some_data'
@@ -18,7 +18,8 @@ class TestFTPUploader(TestCaseWithMox):
         remotedir = '/foo/bar'
 
         ob = self._makeOne(host, username, password, remotedir)
-        ftp = ob.FTPHost = self.mox.CreateMock(FTPHost)
+        self.mox.StubOutWithMock(ftputil, 'FTPHost')
+        ftp = ob.FTPHost = self.mox.CreateMockAnything()
 
         # Graba acciones esperadas en el mock del FTPHost
         ftp(host, username, password).AndReturn(ftp)
