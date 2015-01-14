@@ -72,6 +72,10 @@ def processor_func(path):
         yield path, f.read()
 ```
 
+A file (eg: a zipfile) may be converted to several `(filename, contents)`, in
+this case yield them one by one.
+
+
 An object can also be used as a processor if one may want to pass extra
 arguments to it. For example:
 
