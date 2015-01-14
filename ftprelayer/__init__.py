@@ -1,6 +1,5 @@
 import re
 import sys
-import Queue
 import datetime
 import os
 import logging
@@ -10,6 +9,11 @@ from threading import Thread, Event
 from fnmatch import fnmatchcase
 import zipfile
 from logging import Formatter
+try:
+    import queue
+except ImportError:
+    # support python < 3
+    import Queue as queue
 
 import validate
 from configobj import ConfigObj
@@ -39,7 +43,7 @@ class Application(object):
         self._wm = pyinotify.WatchManager()
         self._notifier = pyinotify.ThreadedNotifier(self._wm)
         self._queue_processor = Thread(target=self._process_queue)
-        self._queue = Queue.Queue()
+        self._queue = queue.Queue()
         self._stopping = Event()
         self._archive_dir = archive_dir
 
@@ -113,7 +117,7 @@ class Application(object):
         while not self._stopping.isSet():
             try:
                 relayer, path = self._queue.get(True, .5)
-            except Queue.Empty:
+            except queue.Empty:
                 pass
             else:
                 try:
