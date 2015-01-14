@@ -4,16 +4,17 @@ import datetime
 import os
 import logging
 import shutil
-from cStringIO import StringIO
 from threading import Thread, Event
 from fnmatch import fnmatchcase
 import zipfile
 from logging import Formatter
 try:
     import queue
+    from io import BytesIO
 except ImportError:
     # support python < 3
     import Queue as queue
+    from cStringIO import StringIO as BytesIO
 
 import validate
 from configobj import ConfigObj
@@ -305,7 +306,7 @@ class FTPUploader(Uploader):
             destname = dir + filename
             dest = ftp.file(destname, 'wb')
             log.info("FTPUploader.upload: %s -> %s", filename, destname)
-            ftp.copyfileobj(StringIO(data), dest)
+            ftp.copyfileobj(BytesIO(data), dest)
             dest.close()
 
 
@@ -347,7 +348,7 @@ class add_prefix_to_zip_contents(object):
         self.prefix = prefix
 
     def __call__(self, path):
-        buff = StringIO()
+        buff = BytesIO()
         source = zipfile.ZipFile(path, 'r')
         target = zipfile.ZipFile(buff, 'w', zipfile.ZIP_DEFLATED)
         for zi in source.filelist:
